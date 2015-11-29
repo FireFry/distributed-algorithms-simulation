@@ -1,3 +1,4 @@
-rm coffeescript/concat.coffee
-coffeescript-concat -I coffeescript/ -o coffeescript/concat.coffee
-coffee coffeescript/concat.coffee
+mkdir -p target/
+rm -f target/concat.coffee
+coffeescript-concat -I coffeescript/ -o target/concat.coffee
+coffee target/concat.coffee

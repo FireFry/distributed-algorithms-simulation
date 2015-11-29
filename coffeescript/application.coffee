@@ -1,6 +1,11 @@
 network = new Network
-network.broadcast("Hello first time!")
-new Server().connect(network)
-network.broadcast("Hello second time!")
-new Server().connect(network)
-network.broadcast("Hello finally!")
+
+first = new Server
+first.connect(network)
+
+second = new Server
+second.connect(network)
+
+first.broadcast("Hello from server #{first.connection.ip}")
+second.broadcast("Hello from server #{second.connection.ip}")
+
