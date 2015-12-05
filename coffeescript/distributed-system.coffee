@@ -2,14 +2,14 @@ class Message
         constructor: (@sender, @receiver, @content) ->
 
 class Network
-        ipCounter: 1
+        constructor: ->
+                @ips = {}
+                @connections = {}
         
-        ips: {}        
+        @ipCounter: 1
         
-        connections: {}
-
         connect: (server) ->
-                ip = @ipCounter++
+                ip = Network.ipCounter++
                 connection = new Connection(ip, this, server)
                 @ips[ip] = ip                
                 @connections[ip] = connection
@@ -20,22 +20,17 @@ class Network
 
         send: (from, to, msgContent) ->                
                 message = new Message(from, to, msgContent)
-                console.log("Sending message #{JSON.stringify(message)}")
                 @connections[message.receiver].mailbox.push(message)
 
         tick: ->
-                console.log("Network tick...")
                 connection.fillReceiveQueue() for ip, connection of @connections
                 connection.receiveMessages() for ip, connection of @connections
 
 class Connection
-        mailbox: []
-
-        receiveQueue: []
-        
         constructor: (@ip, @network, @server) ->
-
-        ips: -> @network.ips
+                @mailbox = []
+                @receiveQueue = []
+                @ips = @network.ips
 
         broadcast: (messageContent) ->
                 @network.broadcast(@ip, messageContent)
@@ -52,8 +47,6 @@ class Connection
                 @receiveQueue = []
 
 class Server
-        field: "fieldName"
-
         connect: (network) ->
                 @connection = network.connect(this)
 
