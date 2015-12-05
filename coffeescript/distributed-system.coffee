@@ -1,44 +1,67 @@
+class Message
+        constructor: (@sender, @receiver, @content) ->
+
 class Network
-	ipCounter: 1
-	ips: {}
-	servers: {}
+        ipCounter: 1
+        
+        ips: {}        
+        
+        connections: {}
 
-	connect: (server) ->
-		ip = @ipCounter++
-		@ips[ip] = ip
-		@servers[ip] = server
-		new Connection(ip, this)
+        connect: (server) ->
+                ip = @ipCounter++
+                connection = new Connection(ip, this, server)
+                @ips[ip] = ip                
+                @connections[ip] = connection
+                connection
 
-	send: (message) ->
-		@servers[message.receiver].receive(message)
+        broadcast: (from, msgContent) ->
+                @send(from, to, msgContent) for toKey, to of @ips when to != from
+
+        send: (from, to, msgContent) ->                
+                message = new Message(from, to, msgContent)
+                console.log("Sending message #{JSON.stringify(message)}")
+                @connections[message.receiver].mailbox.push(message)
+
+        tick: ->
+                console.log("Network tick...")
+                connection.fillReceiveQueue() for ip, connection of @connections
+                connection.receiveMessages() for ip, connection of @connections
 
 class Connection
-	constructor: (@ip, @network) ->
+        mailbox: []
 
-	ips: -> @network.ips
+        receiveQueue: []
+        
+        constructor: (@ip, @network, @server) ->
 
-	broadcast: (messageContent) ->
-		@send(ip, messageContent) for ipKey, ip of @network.ips when ip != @ip
-			
-	send: (ip, messageContent) ->
-		@network.send({
-			sender: @ip
-			receiver: ip
-			content: messageContent
-		})
+        ips: -> @network.ips
+
+        broadcast: (messageContent) ->
+                @network.broadcast(@ip, messageContent)
+
+        send: (ip, messageContent) ->
+                @network.send(@ip, ip, messageContent)
+
+        fillReceiveQueue: ->
+                @receiveQueue = @mailbox
+                @mailbox = []
+
+        receiveMessages: ->
+                @server.receive(message) for message in @receiveQueue
+                @receiveQueue = []
 
 class Server
-	connect: (network) ->
-		@connection = network.connect(this)
+        field: "fieldName"
 
-	receive: (message) ->
-		@log("received \"#{message.content}\"")
+        connect: (network) ->
+                @connection = network.connect(this)
 
-	log: (msg) ->
-		console.log("Server(#{@connection.ip}) #{msg}")
+        receive: (message) ->
+                @log("received \"#{JSON.stringify(message)}\"")
 
-	broadcast: (message) ->
-		@connection.broadcast(message)
+        log: (msg) ->
+                console.log("Server(#{@connection.ip}) #{msg}")
 
-	send: (ip, message) ->
-		@connection.send(ip, message)
+        broadcast: (msg) ->
+                @connection.broadcast(msg)
