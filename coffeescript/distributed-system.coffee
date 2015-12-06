@@ -1,12 +1,24 @@
 class Message
         constructor: (@sender, @receiver, @content) ->
 
+class Future
+        constructor: (@delay, @endCallback, @tickCallback = ->) ->
+
+        tick: ->
+                return if @finished()
+                @tickCallback(@delay)
+                @endCallback() if @delay-- == 0
+
+        finished: ->
+                @delay < 0
+
 class Network
+        @ipCounter: 1
+        
         constructor: ->
                 @ips = {}
                 @connections = {}
-        
-        @ipCounter: 1
+                @futures = []
         
         connect: (server) ->
                 ip = Network.ipCounter++
@@ -20,7 +32,20 @@ class Network
 
         send: (from, to, msgContent) ->                
                 message = new Message(from, to, msgContent)
+                
+                latency = @latency(from, to)
+                willFail = @shouldFail(from, to)
+                failDelay = if willFail then random(latency) else 0
+
+                
+                
                 @connections[message.receiver].mailbox.push(message)
+
+        latency: (from, to) ->
+                randomBetween(100, 300)
+
+        shouldFail: (from, to) ->
+                false
 
         tick: ->
                 connection.fillReceiveQueue() for ip, connection of @connections
