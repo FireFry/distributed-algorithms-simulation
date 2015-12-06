@@ -6,27 +6,36 @@ class Message
                 
 class Future
         constructor: (@delay, @endCallback, @tickCallback = ->) ->
+                @cancelled = false
 
         tick: ->
                 return if @finished()
                 @tickCallback(@delay)
-                @endCallback() if @delay-- == 0
+                @endCallback() if not @cancelled and @delay-- == 0
 
         finished: ->
-                @delay < 0
+                @cancelled or @delay < 0
 
-class Delivery
+        cancel: ->
+                @cancelled = true
+
+class Delivery extends Future
         constructor: (@message, @network) ->
                 @latency = @network.latency(@message)
                 @willFail = @network.shouldFail(@message)
-                @failDelay = if @willFail then random(@latency) else 0
-                log("Delivery: message = #{@message.stringify()}, latency = #{@latency}, willFail = #{@willFail}, failDelay = #{@failDelay}")
+                @failDelay = if @willFail then random(@latency) else -1
+                #log("Delivery: message = #{@message.stringify()}, latency = #{@latency}, willFail = #{@willFail}, failDelay = #{@failDelay}")
+                super(@latency, (-> @succeed()), ((delay) -> @onTick(delay)))
 
-        tick: ->
+        fail: ->
+                @network.onDeliveryFailed(@message)
+                @cancel()
+
+        succeed: ->
                 @network.onDeliverySucceeded(@message)
 
-        finished: ->
-                true
+        onTick: (delay) ->
+                @fail() if delay == @failDelay                        
                 
 class Network
         @ipCounter: 1
@@ -61,7 +70,7 @@ class Network
                 randomBetween(100, 300)
 
         shouldFail: (message) ->
-                false
+                random(2) == 0
 
         tick: ->
                 @tickDeliveries()

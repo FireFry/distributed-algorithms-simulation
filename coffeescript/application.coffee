@@ -9,4 +9,4 @@ second.connect(network)
 first.broadcast("Hello from server #{first.connection.ip}")
 second.broadcast("Hello from server #{second.connection.ip}")
 
-network.tick()
+network.tick() for tick in [0..400]
