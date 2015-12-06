@@ -1,6 +1,9 @@
 class Message
         constructor: (@sender, @receiver, @content) ->
 
+        stringify: ->
+                JSON.stringify(this)
+                
 class Future
         constructor: (@delay, @endCallback, @tickCallback = ->) ->
 
@@ -12,13 +15,26 @@ class Future
         finished: ->
                 @delay < 0
 
+class Delivery
+        constructor: (@message, @network) ->
+                @latency = @network.latency(@message)
+                @willFail = @network.shouldFail(@message)
+                @failDelay = if @willFail then random(@latency) else 0
+                log("Delivery: message = #{@message.stringify()}, latency = #{@latency}, willFail = #{@willFail}, failDelay = #{@failDelay}")
+
+        tick: ->
+                @network.onDeliverySucceeded(@message)
+
+        finished: ->
+                true
+                
 class Network
         @ipCounter: 1
         
         constructor: ->
                 @ips = {}
                 @connections = {}
-                @futures = []
+                @deliveries = []
         
         connect: (server) ->
                 ip = Network.ipCounter++
@@ -32,24 +48,32 @@ class Network
 
         send: (from, to, msgContent) ->                
                 message = new Message(from, to, msgContent)
-                
-                latency = @latency(from, to)
-                willFail = @shouldFail(from, to)
-                failDelay = if willFail then random(latency) else 0
+                delivery = new Delivery(message, this)
+                @deliveries.push(delivery)
 
-                
-                
+        onDeliveryFailed: (message) ->
+                log("Failed to deliver: #{message.stringify()}")
+
+        onDeliverySucceeded: (message) ->
                 @connections[message.receiver].mailbox.push(message)
 
-        latency: (from, to) ->
+        latency: (message) ->
                 randomBetween(100, 300)
 
-        shouldFail: (from, to) ->
+        shouldFail: (message) ->
                 false
 
         tick: ->
+                @tickDeliveries()
                 connection.fillReceiveQueue() for ip, connection of @connections
                 connection.receiveMessages() for ip, connection of @connections
+
+        tickDeliveries: ->
+                newDeliveries = []
+                for delivery in @deliveries
+                        delivery.tick()
+                        newDeliveries.push(delivery) if !delivery.finished()
+                @deliveries = newDeliveries
 
 class Connection
         constructor: (@ip, @network, @server) ->
